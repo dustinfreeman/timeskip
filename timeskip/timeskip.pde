@@ -159,12 +159,20 @@ void draw()
   
   PImage prevImage = cq_get_prev(40);
   
+  color BORDER_COLOUR = color(0, 100, 220); 
+  
   PImage composited = createImage(640, 480, RGB);
   for (int i = 0; i < composited.pixels.length; i++) { 
     if (userMap[i] != 0)
       composited.pixels[i] = prevImage.pixels[i];
     else
       composited.pixels[i] = lastRGB.pixels[i];
+      
+    //border
+    if (i > 0 && i < composited.pixels.length &&
+      userMap[i] != userMap[i-1])
+      composited.pixels[i] = BORDER_COLOUR;
+      
   }
   
   
