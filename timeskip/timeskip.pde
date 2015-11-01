@@ -1,8 +1,7 @@
 import SimpleOpenNI.*;
 SimpleOpenNI  context;
 
-// ------------------------
-//idiotic circular queue
+// idiotic circular queue ------------------------
 int CQ_SIZE = 100;
 PImage[] ImageQueue; 
 int _cq_current = 0;
@@ -45,7 +44,7 @@ void cq_push(PImage next_image)
 PImage cq_get_prev(int indicies_back)
 {
   int prevIndex = _get_prev_index(indicies_back);
-  println("_cq_current " + _cq_current + " indicies_back " + indicies_back + " getting " + prevIndex);
+//  println("_cq_current " + _cq_current + " indicies_back " + indicies_back + " getting " + prevIndex);
   
   return ImageQueue[prevIndex];
 }
@@ -54,7 +53,7 @@ PImage cq_get_now()
 {
   return cq_get_prev(0);
 }
-// ------------------------
+// end idiotic circular queue------------------------
 
 void setup_default()
 {
@@ -128,6 +127,7 @@ void draw()
 //  draw_default();
 
  lastRGB = context.rgbImage();
+ cq_push(lastRGB);
  
  PImage debugUser = createImage(640, 480, RGB);
  debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
@@ -162,8 +162,8 @@ void draw()
   
   PImage prevImage = cq_get_prev(40);
   
+  // creation of the timeskip composite.
   color BORDER_COLOUR = color(0, 100, 220); 
-  
   PImage composited = createImage(640, 480, RGB);
   for (int i = 0; i < composited.pixels.length; i++) { 
     if (userMap[i] != 0)
@@ -186,7 +186,7 @@ void draw()
   
   
   
-  cq_push(lastRGB);
+  
 
 //   if (DEBUG)
 //     image(context.userImage(), context.rgbWidth(),0);
