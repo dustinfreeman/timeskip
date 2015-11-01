@@ -80,6 +80,9 @@ void setup_context()
   // enable skeleton generation for all joints
   context.enableUser();
   println("done kinect setup");
+  
+  // align depth data to image data
+  context.alternativeViewPointDepthToImage();
 }
 
 void setup()
