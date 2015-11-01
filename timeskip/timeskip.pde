@@ -26,6 +26,8 @@ void _cq_advance_index()
 
 int _get_prev_index(int indicies_back)
 {
+  assert(indicies_back >= 0);
+  
   int val = _cq_current - indicies_back; 
   while (val < 0) {
     val += CQ_SIZE;  
@@ -37,13 +39,13 @@ int _get_prev_index(int indicies_back)
 void cq_push(PImage next_image)
 {
   _cq_advance_index();
-  ImageQueue[_cq_current] = next_image;
+  ImageQueue[_cq_current].copy(next_image, 0,0,640,480, 0,0,640,480);
 }
 
 PImage cq_get_prev(int indicies_back)
 {
   int prevIndex = _get_prev_index(indicies_back);
-  println("getting " + prevIndex);
+  println("_cq_current " + _cq_current + " indicies_back " + indicies_back + " getting " + prevIndex);
   
   return ImageQueue[prevIndex];
 }
@@ -93,6 +95,8 @@ void setup()
   size(context.rgbWidth(), context.rgbHeight()); 
   if (DEBUG)
     size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()); 
+    
+  size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()*2);
   
 }
 
@@ -114,6 +118,9 @@ void draw()
 {
   // update the kinect
   context.update();
+  
+  //DEBUG
+  scale(0.5);
   
 //  draw_default();
 
@@ -149,8 +156,26 @@ void draw()
 //    updatePixels(); 
 
     
+  
+  PImage prevImage = cq_get_prev(40);
+  
+  PImage composited = createImage(640, 480, RGB);
+  for (int i = 0; i < composited.pixels.length; i++) { 
+    if (userMap[i] != 0)
+      composited.pixels[i] = prevImage.pixels[i];
+    else
+      composited.pixels[i] = lastRGB.pixels[i];
+  }
+  
+  
   image(lastRGB,0,0);
-  image(debugUser,context.rgbWidth(),0);
+  image(debugUser, context.rgbWidth(),0);
+  image(prevImage, 0, context.rgbHeight());
+  image(composited, context.rgbWidth(), context.rgbHeight());
+  
+  
+  
+  cq_push(lastRGB);
 
 //   if (DEBUG)
 //     image(context.userImage(), context.rgbWidth(),0);
