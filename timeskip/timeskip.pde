@@ -1,6 +1,59 @@
 import SimpleOpenNI.*;
 SimpleOpenNI  context;
 
+// ------------------------
+//idiotic circular queue
+int CQ_SIZE = 100;
+PImage[] ImageQueue; 
+int _cq_current = 0;
+
+void cq_setup()
+{
+  ImageQueue = new PImage[CQ_SIZE];
+  
+  for (int i = 0; i < CQ_SIZE; i++)
+  {
+    ImageQueue[i] = createImage(640, 480, RGB);  
+  }
+}
+
+void _cq_advance_index()
+{
+  _cq_current++;
+  if (_cq_current >= CQ_SIZE)
+    _cq_current = 0;
+}
+
+int _get_prev_index(int indicies_back)
+{
+  int val = _cq_current - indicies_back; 
+  while (val < 0) {
+    val += CQ_SIZE;  
+  };
+  
+  return val;
+}
+
+void cq_push(PImage next_image)
+{
+  _cq_advance_index();
+  ImageQueue[_cq_current] = next_image;
+}
+
+PImage cq_get_prev(int indicies_back)
+{
+  int prevIndex = _get_prev_index(indicies_back);
+  println("getting " + prevIndex);
+  
+  return ImageQueue[prevIndex];
+}
+
+PImage cq_get_now()
+{
+  return cq_get_prev(0);
+}
+// ------------------------
+
 void setup_default()
 {
   background(200,0,0);
@@ -30,7 +83,7 @@ void setup_context()
 void setup()
 {
   setup_context();
-  
+  cq_setup();
   smooth();
  
 //  setup_default();
