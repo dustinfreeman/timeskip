@@ -3,17 +3,14 @@ SimpleOpenNI  context;
 
 // idiotic circular queue ------------------------
 int CQ_SIZE = 100;
-PImage[] ImageQueue; 
+PImage[] CQ_ImageQueue; 
 int _cq_current = 0;
 
 void cq_setup()
 {
-  ImageQueue = new PImage[CQ_SIZE];
-  
+  CQ_ImageQueue = new PImage[CQ_SIZE];
   for (int i = 0; i < CQ_SIZE; i++)
-  {
-    ImageQueue[i] = createImage(640, 480, RGB);  
-  }
+    CQ_ImageQueue[i] = createImage(640, 480, RGB);  
 }
 
 void _cq_advance_index()
@@ -38,7 +35,7 @@ int _get_prev_index(int indicies_back)
 void cq_push(PImage next_image)
 {
   _cq_advance_index();
-  ImageQueue[_cq_current].copy(next_image, 0,0,640,480, 0,0,640,480);
+  CQ_ImageQueue[_cq_current].copy(next_image, 0,0,640,480, 0,0,640,480);
 }
 
 PImage cq_get_prev(int indicies_back)
@@ -46,7 +43,7 @@ PImage cq_get_prev(int indicies_back)
   int prevIndex = _get_prev_index(indicies_back);
 //  println("_cq_current " + _cq_current + " indicies_back " + indicies_back + " getting " + prevIndex);
   
-  return ImageQueue[prevIndex];
+  return CQ_ImageQueue[prevIndex];
 }
 
 PImage cq_get_now()
@@ -133,10 +130,6 @@ void draw()
  PImage debugUser = createImage(640, 480, RGB);
  debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
 
-
-// if we have detected any users
-//  if (context.getNumberOfUsers() > 0) { 
-
     // find out which pixels have users in them
     userMap = context.userMap(); 
 
@@ -144,21 +137,15 @@ void draw()
     // from the sketch's current contents
 
     for (int i = 0; i < userMap.length; i++) { 
-      // if the current pixel is on a user
       if (userMap[i] != 0) {
         // make it green
-//        pixels[i] = color(0, 255, 0); 
-        debugUser.pixels[i] = color(0, 255, 0);
+       debugUser.pixels[i] = color(0, 255, 0);
       }
       else
       {
 //        debugUser.pixels[i] = color(255, 0, 0);
       }
     }
-//    }
-    // display the changed pixel array
-//    updatePixels(); 
-
     
   
   PImage prevImage = cq_get_prev(40);
@@ -184,13 +171,7 @@ void draw()
   image(debugUser, context.rgbWidth(),0);
   image(prevImage, 0, context.rgbHeight());
   image(composited, context.rgbWidth(), context.rgbHeight());
-  
-  
-  
-  
 
-//   if (DEBUG)
-//     image(context.userImage(), context.rgbWidth(),0);
 }
 
 
