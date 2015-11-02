@@ -77,7 +77,7 @@ color even_blend(color c1, color c2)
 
 // spacing queue ------------------------
 
-int SQ_SIZE = 50;
+int SQ_SIZE = 200;
 PImage[] SQ_ImageQueue; 
 int[] SQ_debugIntQueue;
 
@@ -158,11 +158,38 @@ void _sq_push(PImage next_image)
   _sq_advance_push_index();
 }
 
+//have to do it this way because I think PIImage keeps data at a low int res
+int[] _sq_pre_push_r = new int[640*480]; 
+int[] _sq_pre_push_g = new int[640*480]; 
+int[] _sq_pre_push_b = new int[640*480]; 
+
 void sq_try_push(PImage next_image)
 {
   _sq_try_push_count++;
+  //blend it into the pre-push frame
+  for (int p = 0; p < 640*480; p++)
+  {
+    _sq_pre_push_r[p] += (next_image.pixels[p] >> 16) & 0xFF;
+    _sq_pre_push_g[p] += (next_image.pixels[p] >> 8) & 0xFF;
+    _sq_pre_push_b[p] += next_image.pixels[p] & 0xFF;
+  }
   if (_sq_try_push_count % _sq_push_delay == 0)
-    _sq_push(next_image);   
+  {
+    PImage push_image = createImage(640, 480, RGB);
+    for (int p = 0; p < push_image.width*push_image.height; p++)
+    {
+      int p_value = (_sq_pre_push_r[p]/_sq_push_delay) << 16 |
+                    (_sq_pre_push_g[p]/_sq_push_delay) << 8  |
+                    (_sq_pre_push_b[p]/_sq_push_delay);
+      push_image.pixels[p] = p_value;
+    }
+    _sq_push(push_image);
+    
+    //clear it out
+    _sq_pre_push_r = new int[640*480]; 
+    _sq_pre_push_g = new int[640*480]; 
+    _sq_pre_push_b = new int[640*480]; 
+  }
   
   if (!KINECT)
     println("sq_try_push " + _sq_try_push_count);  
