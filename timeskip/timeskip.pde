@@ -89,6 +89,7 @@ void setup()
   setup_context();
   cq_setup();
   smooth();
+  frameRate(30);
  
 //  setup_default();
  
