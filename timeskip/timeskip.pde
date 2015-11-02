@@ -52,13 +52,80 @@ PImage cq_get_now()
 }
 // end idiotic circular queue------------------------
 
+// spacing queue ------------------------
+
+int SQ_SIZE = 200;
+PImage[] SQ_ImageQueue; 
+
+int _sq_push_index = 0;
+int _sq_try_push_count = 0;
+int _sq_push_delay = 1;
+
+int _sq_get_index = 0;
+
+void sq_setup()
+{
+  SQ_ImageQueue = new PImage[SQ_SIZE];
+  for (int i = 0; i < SQ_SIZE; i++)
+    SQ_ImageQueue[i] = createImage(640, 480, RGB);   
+}
+
+void _sq_advance_push_index()
+{
+  _sq_push_index++;
+  if (_sq_push_index >= SQ_SIZE)
+  {
+    //magic halving the effective array; speeding up the timeskip
+    for (int i = 0; i < SQ_SIZE/2; i++)
+      SQ_ImageQueue[i] = SQ_ImageQueue[2*i];
+      
+    _sq_push_index = SQ_SIZE/2;
+    _sq_push_delay*=2;
+    
+    println("_sq_push_delay (aka playback rate) is now " + _sq_push_delay);
+  }
+}
+
+void _sq_push(PImage next_image)
+{
+  _sq_advance_push_index();
+  SQ_ImageQueue[_sq_push_index].copy(next_image, 0,0,640,480, 0,0,640,480);
+  
+//  println("_sq_push_index " + _sq_push_index);
+}
+
+void sq_try_push(PImage next_image)
+{
+  _sq_try_push_count++;
+  if (_sq_try_push_count % _sq_push_delay == 0)
+    _sq_push(next_image);     
+}
+
+PImage sq_get()
+{
+  PImage gotImage = SQ_ImageQueue[_sq_get_index];
+//  println("sq_get " + _sq_get_index);
+  
+  _sq_get_index++;
+  // if we get from somewhere after the current push index,
+  // we're getting from an area that could be playing at a slower framerate than
+  // current.
+  if (_sq_get_index >= _sq_push_index)
+  {
+    println("SQ get looped @ " + _sq_get_index);
+    _sq_get_index = 0;
+  }
+  
+  return gotImage;
+}
+
+// end spacing queue ------------------------
+
 void setup_default()
 {
   background(200,0,0);
   size(context.depthWidth() + context.rgbWidth() + 10, context.rgbHeight());   
 }
-
-Boolean DEBUG = true;
 
 void setup_context()
 {
@@ -84,20 +151,17 @@ void setup_context()
 void setup()
 {
   setup_context();
-  cq_setup();
+//  cq_setup();
+  sq_setup();
   smooth();
   frameRate(30);
  
 //  setup_default();
  
- 
   background(200,0,0);
   size(context.rgbWidth(), context.rgbHeight()); 
-  if (DEBUG)
-    size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()); 
     
-  size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()*2);
-  
+  size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()*2); 
 }
 
 void draw_default()
@@ -113,9 +177,15 @@ void draw_default()
 int[] userMap;
 
 PImage lastRGB;
-
+Boolean drawing = false;
 void draw()
 {
+  
+  if (drawing)
+    println("Fuck! Double draw");
+    
+  drawing = true;
+  
   // update the kinect
   context.update();
   
@@ -124,9 +194,10 @@ void draw()
   
 //  draw_default();
 
- lastRGB = context.rgbImage();
- cq_push(lastRGB);
- 
+  lastRGB = context.rgbImage();
+// cq_push(lastRGB);
+  sq_try_push(lastRGB);
+   
  PImage debugUser = createImage(640, 480, RGB);
  debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
 
@@ -148,7 +219,8 @@ void draw()
     }
     
   
-  PImage prevImage = cq_get_prev(40);
+//  PImage prevImage = cq_get_prev(40);
+  PImage prevImage = sq_get();
   
   // creation of the timeskip composite.
   color BORDER_COLOUR = color(0, 100, 220); 
@@ -172,6 +244,8 @@ void draw()
   image(prevImage, 0, context.rgbHeight());
   image(composited, context.rgbWidth(), context.rgbHeight());
 
+
+  drawing = false;
 }
 
 
