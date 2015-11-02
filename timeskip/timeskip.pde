@@ -2,6 +2,8 @@ import SimpleOpenNI.*;
 SimpleOpenNI  context;
 
 Boolean KINECT = true;
+Boolean DEV_MODE = false;
+Boolean BLUR_MODE = true;
 
 // idiotic circular queue ------------------------
 int CQ_SIZE = 100;
@@ -54,9 +56,28 @@ PImage cq_get_now()
 }
 // end idiotic circular queue------------------------
 
+color even_blend(color c1, color c2)
+{
+//  int a = (c1 >> 24) & 0xFF;
+  int r1 = ( (c1 >> 16) & 0xFF);  // Faster way of getting red(argb)
+  int g1 = ( (c1 >> 8) & 0xFF );  // Faster way of getting green(argb)
+  int b1 = ( c1 & 0xFF        );  // Faster way of getting blue(argb)
+  
+  int r2 = ( (c2 >> 16) & 0xFF);  // Faster way of getting red(argb)
+  int g2 = ( (c2 >> 8) & 0xFF );  // Faster way of getting green(argb)
+  int b2 = ( c2 & 0xFF        );  // Faster way of getting blue(argb)
+  
+//  println(" c1 " + r1 + "," + g1 + "," + b1 + " " +
+//    " c2 " + r2 + "," + g2 + "," + b2 + " " +
+//    " even_blend " + (r1+r2)/2 + "," + (g1+g2)/2 + "," + (b1+b2)/2
+//    );
+  
+  return color((r1+r2)/2, (g1+g2)/2, (b1+b2)/2); 
+}
+
 // spacing queue ------------------------
 
-int SQ_SIZE = 200;
+int SQ_SIZE = 50;
 PImage[] SQ_ImageQueue; 
 int[] SQ_debugIntQueue;
 
@@ -89,7 +110,30 @@ void _sq_advance_push_index()
 //    print("Halve: ");
     for (int i = 0; i < SQ_SIZE/2; i++)
     {
-      SQ_ImageQueue[i].copy(SQ_ImageQueue[2*i], 0,0,640,480, 0,0,640,480);
+      if (BLUR_MODE)
+      {
+        //it would be nice to use BLEND, but this requires the image to have an alpha
+        // channel, which it does not.
+        // SQ_ImageQueue[i].blend(SQ_ImageQueue[2*i], 0,0,640,480, 0,0,640,480, BLEND);
+        for (int p = 0; p < SQ_ImageQueue[i].width*SQ_ImageQueue[i].height; p++)
+        {
+          color blended = even_blend(SQ_ImageQueue[2*i].pixels[p], 
+                                        SQ_ImageQueue[2*i+1].pixels[p]);
+                                        
+//          if (p == (320*480 + 320))
+//          {
+//            println("blended, SQ_ImageQueue[2*i].pixels[p], SQ_ImageQueue[2*i+1].pixels[p] \n" 
+//            + blended + "," + SQ_ImageQueue[2*i].pixels[p] + "," + SQ_ImageQueue[2*i+1].pixels[p]); 
+//          }
+            
+          SQ_ImageQueue[i].pixels[p] = blended;
+        }
+         
+      }
+      else
+      {
+        SQ_ImageQueue[i].copy(SQ_ImageQueue[2*i], 0,0,640,480, 0,0,640,480); 
+      }
       SQ_debugIntQueue[i] = SQ_debugIntQueue[2*i]; 
 //      print(i + ":" + SQ_debugIntQueue[i] + " ");
     }
@@ -144,7 +188,7 @@ PImage sq_get()
   // current.
   if (_sq_get_index >= _sq_push_index)
   {
-    println("SQ get looped @ " + _sq_get_index);
+//    println("SQ get looped @ " + _sq_get_index);
     _sq_get_index = 0;
   }
   
@@ -225,10 +269,10 @@ void draw()
   if (KINECT)
     context.update();
   
-  //DEBUG
-  scale(0.5);
-  
-//  draw_default();
+  if (DEV_MODE)
+    scale(0.5);
+  else
+    scale(1);
 
   if (KINECT)
   {
@@ -238,7 +282,8 @@ void draw()
   sq_try_push(lastRGB);
    
   PImage debugUser = createImage(640, 480, RGB);
-  debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
+  if (DEV_MODE)
+    debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
 
     // find out which pixels have users in them
   if (KINECT)
@@ -247,15 +292,12 @@ void draw()
 
     // populate the pixels array
     // from the sketch's current contents
-
-    for (int i = 0; i < userMap.length; i++) { 
-      if (userMap[i] != 0) {
-        // make it green
-       debugUser.pixels[i] = color(0, 255, 0);
-      }
-      else
-      {
-//        debugUser.pixels[i] = color(255, 0, 0);
+    
+    if (DEV_MODE)
+    {
+      for (int i = 0; i < userMap.length; i++) { 
+        if (userMap[i] != 0)
+          debugUser.pixels[i] = color(0, 255, 0);
       }
     }
   }
@@ -280,18 +322,22 @@ void draw()
       composited.pixels[i] = lastRGB.pixels[i];
       
     //border
-    if (i > 0 && i < composited.pixels.length &&
-      userMap[i] != userMap[i-1])
+    if (i > 0 && i < composited.pixels.length && userMap[i] != userMap[i-1])
       composited.pixels[i] = BORDER_COLOUR;
       
   }
   
-  
-  image(lastRGB,0,0);
-  image(debugUser, 640,0);
-  image(prevImage, 0, 480);
-  image(composited, 640,480);
-
+  if (DEV_MODE)
+  {
+    image(lastRGB,0,0);
+    image(debugUser, 640,0);
+    image(prevImage, 0, 480);
+    image(composited, 640,480);
+  }
+  else
+  {
+    image(composited, 0, 0);
+  }
 
   drawing = false;
 }
@@ -305,10 +351,13 @@ void keyPressed()
   }
   if (keyCode == RIGHT)
   {
-    forceGetIndex++;
+    if (forceGetIndex < SQ_SIZE - 1)
+      forceGetIndex++;
   }
-  
   println("forceGetIndex: " + forceGetIndex);
+  
+  if (keyCode == BACKSPACE)
+    DEV_MODE = !DEV_MODE;
 }
 
 // -----------------------------------------------------------------
