@@ -1,6 +1,8 @@
 import SimpleOpenNI.*;
 SimpleOpenNI  context;
 
+Boolean KINECT = true;
+
 // idiotic circular queue ------------------------
 int CQ_SIZE = 100;
 PImage[] CQ_ImageQueue; 
@@ -56,6 +58,7 @@ PImage cq_get_now()
 
 int SQ_SIZE = 200;
 PImage[] SQ_ImageQueue; 
+int[] SQ_debugIntQueue;
 
 int _sq_push_index = 0;
 int _sq_try_push_count = 0;
@@ -65,9 +68,16 @@ int _sq_get_index = 0;
 
 void sq_setup()
 {
+  if (!KINECT)
+    SQ_SIZE = 16;
+  
+  SQ_debugIntQueue = new int[SQ_SIZE];
   SQ_ImageQueue = new PImage[SQ_SIZE];
-  for (int i = 0; i < SQ_SIZE; i++)
-    SQ_ImageQueue[i] = createImage(640, 480, RGB);   
+  for (int i = 0; i < SQ_SIZE; i++) 
+  {
+    SQ_ImageQueue[i] = createImage(640, 480, RGB); 
+    SQ_debugIntQueue[i] = -1;
+  }  
 }
 
 void _sq_advance_push_index()
@@ -76,9 +86,15 @@ void _sq_advance_push_index()
   if (_sq_push_index >= SQ_SIZE)
   {
     //magic halving the effective array; speeding up the timeskip
+//    print("Halve: ");
     for (int i = 0; i < SQ_SIZE/2; i++)
-      SQ_ImageQueue[i] = SQ_ImageQueue[2*i];
-      
+    {
+      SQ_ImageQueue[i].copy(SQ_ImageQueue[2*i], 0,0,640,480, 0,0,640,480);
+      SQ_debugIntQueue[i] = SQ_debugIntQueue[2*i]; 
+//      print(i + ":" + SQ_debugIntQueue[i] + " ");
+    }
+//    println();
+  
     _sq_push_index = SQ_SIZE/2;
     _sq_push_delay*=2;
     
@@ -88,23 +104,39 @@ void _sq_advance_push_index()
 
 void _sq_push(PImage next_image)
 {
-  _sq_advance_push_index();
-  SQ_ImageQueue[_sq_push_index].copy(next_image, 0,0,640,480, 0,0,640,480);
+  if (KINECT)
+    SQ_ImageQueue[_sq_push_index].copy(next_image, 0,0,640,480, 0,0,640,480);
+  SQ_debugIntQueue[_sq_push_index] = _sq_try_push_count;
   
-//  println("_sq_push_index " + _sq_push_index);
+  if (!KINECT)
+    println("_sq_push_index " + _sq_push_index + " " + _sq_try_push_count);
+  
+  _sq_advance_push_index();
 }
 
 void sq_try_push(PImage next_image)
 {
   _sq_try_push_count++;
   if (_sq_try_push_count % _sq_push_delay == 0)
-    _sq_push(next_image);     
+    _sq_push(next_image);   
+  
+  if (!KINECT)
+    println("sq_try_push " + _sq_try_push_count);  
+}
+
+PImage sq_get_at_index(int get_at_index)
+{
+  PImage gotImage = SQ_ImageQueue[get_at_index];
+  int getValue = SQ_debugIntQueue[get_at_index];
+  if (!KINECT)
+    println("sq_get index:" + get_at_index + "\tvalue:" + getValue);
+    
+  return gotImage;
 }
 
 PImage sq_get()
 {
-  PImage gotImage = SQ_ImageQueue[_sq_get_index];
-//  println("sq_get " + _sq_get_index);
+  PImage gotImage = sq_get_at_index(_sq_get_index);
   
   _sq_get_index++;
   // if we get from somewhere after the current push index,
@@ -129,6 +161,9 @@ void setup_default()
 
 void setup_context()
 {
+  if (!KINECT)
+    return;
+  
   context = new SimpleOpenNI(this);
   if(context.isInit() == false)
   {
@@ -155,13 +190,13 @@ void setup()
   sq_setup();
   smooth();
   frameRate(30);
+  if (!KINECT)
+    frameRate(1);
  
 //  setup_default();
- 
+
   background(200,0,0);
-  size(context.rgbWidth(), context.rgbHeight()); 
-    
-  size(context.rgbWidth() + context.depthWidth(), context.rgbHeight()*2); 
+  size(640,480); 
 }
 
 void draw_default()
@@ -176,7 +211,7 @@ void draw_default()
 
 int[] userMap;
 
-PImage lastRGB;
+PImage lastRGB = createImage(640, 480, RGB);
 Boolean drawing = false;
 void draw()
 {
@@ -187,21 +222,27 @@ void draw()
   drawing = true;
   
   // update the kinect
-  context.update();
+  if (KINECT)
+    context.update();
   
   //DEBUG
   scale(0.5);
   
 //  draw_default();
 
-  lastRGB = context.rgbImage();
+  if (KINECT)
+  {
+    lastRGB = context.rgbImage();
+  }
 // cq_push(lastRGB);
   sq_try_push(lastRGB);
    
- PImage debugUser = createImage(640, 480, RGB);
- debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
+  PImage debugUser = createImage(640, 480, RGB);
+  debugUser.copy(lastRGB,0,0,640,480,0,0,640,480);
 
     // find out which pixels have users in them
+  if (KINECT)
+  {
     userMap = context.userMap(); 
 
     // populate the pixels array
@@ -217,15 +258,22 @@ void draw()
 //        debugUser.pixels[i] = color(255, 0, 0);
       }
     }
-    
+  }
   
 //  PImage prevImage = cq_get_prev(40);
-  PImage prevImage = sq_get();
+  PImage prevImage; 
+  if (forceGetIndex >= 0)
+    prevImage = sq_get_at_index(forceGetIndex);
+  else
+    prevImage = sq_get();
   
   // creation of the timeskip composite.
   color BORDER_COLOUR = color(0, 100, 220); 
   PImage composited = createImage(640, 480, RGB);
   for (int i = 0; i < composited.pixels.length; i++) { 
+    if (!KINECT)
+      break;
+    
     if (userMap[i] != 0)
       composited.pixels[i] = prevImage.pixels[i];
     else
@@ -240,14 +288,28 @@ void draw()
   
   
   image(lastRGB,0,0);
-  image(debugUser, context.rgbWidth(),0);
-  image(prevImage, 0, context.rgbHeight());
-  image(composited, context.rgbWidth(), context.rgbHeight());
+  image(debugUser, 640,0);
+  image(prevImage, 0, 480);
+  image(composited, 640,480);
 
 
   drawing = false;
 }
 
+int forceGetIndex = -1;
+void keyPressed()
+{
+  if (keyCode == LEFT)
+  {
+    forceGetIndex--;
+  }
+  if (keyCode == RIGHT)
+  {
+    forceGetIndex++;
+  }
+  
+  println("forceGetIndex: " + forceGetIndex);
+}
 
 // -----------------------------------------------------------------
 // SimpleOpenNI events
