@@ -107,7 +107,7 @@ void _sq_advance_push_index()
   if (_sq_push_index >= SQ_SIZE)
   {
     //magic halving the effective array; speeding up the timeskip
-//    print("Halve: ");
+    print("Halve: ");
     for (int i = 0; i < SQ_SIZE/2; i++)
     {
       if (BLUR_MODE)
@@ -415,8 +415,8 @@ void keyPressed()
 
 void onNewUser(SimpleOpenNI curContext, int userId)
 {
-  println("onNewUser - userId: " + userId);
-  println("\tstart tracking skeleton");
+//  println("onNewUser - userId: " + userId);
+//  println("\tstart tracking skeleton");
   
   curContext.startTrackingSkeleton(userId);
 }
