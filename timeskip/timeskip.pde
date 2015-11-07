@@ -284,9 +284,9 @@ int[] userMap;
 
 PImage lastRGB = createImage(640, 480, RGB);
 Boolean drawing = false;
+float lightFactor = 1.0;
 void draw()
 {
-  
   if (drawing)
     println("Fuck! Double draw");
     
@@ -305,6 +305,19 @@ void draw()
   {
     lastRGB = context.rgbImage();
   }
+  
+  //adjust lighting level:
+  for (int i = 0; i < lastRGB.pixels.length; i++) {
+    color pixel = lastRGB.pixels[i];
+    int r = (pixel >> 16) & 0xFF;  // Faster way of getting red(argb)
+    int g = (pixel >> 8) & 0xFF;   // Faster way of getting green(argb)
+    int b = pixel & 0xFF;          // Faster way of getting blue(argb)
+    r *= lightFactor;
+    g *= lightFactor;
+    b *= lightFactor;
+    lastRGB.pixels[i] = color(r,g,b);
+  }
+  
 // cq_push(lastRGB);
   sq_try_push(lastRGB);
    
@@ -372,6 +385,16 @@ void draw()
 int forceGetIndex = -1;
 void keyPressed()
 {
+  if (keyCode == UP)
+  {
+    lightFactor += 0.1;
+  }
+  if (keyCode == DOWN)
+  {
+    lightFactor -= 0.1;
+  }
+  println("lightFactor: " + lightFactor);
+  
   if (keyCode == LEFT)
   {
     forceGetIndex--;
