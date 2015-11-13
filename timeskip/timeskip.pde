@@ -224,11 +224,11 @@ PImage sq_get()
 
 // end spacing queue ------------------------
 
-void setup_default()
-{
-  background(200,0,0);
-  size(context.depthWidth() + context.rgbWidth() + 10, context.rgbHeight());   
-}
+//void setup_default()
+//{
+//  background(200,0,0);
+//  size(context.depthWidth() + context.rgbWidth() + 10, context.rgbHeight());   
+//}
 
 void setup_context()
 {
@@ -254,6 +254,15 @@ void setup_context()
   context.alternativeViewPointDepthToImage();
 }
 
+int PROJECTOR_WIDTH = 1280;
+int PROJECTOR_HEIGHT = 800;
+
+//Coordinates we must crop if we want to only see the Kinect-visible area:
+float DEPTH_CROP_LEFT = 115 * (640.0/PROJECTOR_WIDTH);
+float DEPTH_CROP_TOP = 125 * (480.0/PROJECTOR_HEIGHT);
+float DEPTH_CROP_RIGHT = 185 * (640.0/PROJECTOR_WIDTH);
+float DEPTH_CROP_BOTTOM = 0;
+
 void setup()
 {
   setup_context();
@@ -266,8 +275,13 @@ void setup()
  
 //  setup_default();
 
-  background(200,0,0);
-  size(640,480); 
+  background(0,0,0);
+  
+  //size(640,480); 
+  size(PROJECTOR_WIDTH, PROJECTOR_HEIGHT);
+  
+  //fullScreen(0);
+  //fullScreen only available in Processing 3+, which SimpleOpenNI conflicts with.
 }
 
 void draw_default()
@@ -352,6 +366,8 @@ void draw()
   // creation of the timeskip composite.
   color BORDER_COLOUR = color(0, 100, 220); 
   PImage composited = createImage(640, 480, RGB);
+  boolean depth_crop = true;
+  
   for (int i = 0; i < composited.pixels.length; i++) { 
     if (!KINECT)
       break;
@@ -365,6 +381,18 @@ void draw()
     if (i > 0 && i < composited.pixels.length && userMap[i] != userMap[i-1])
       composited.pixels[i] = BORDER_COLOUR;
       
+    int x = i % composited.width;
+    int y = i / composited.width;
+    if (depth_crop)
+    {
+      if (x < DEPTH_CROP_LEFT || 
+        (composited.width - x) < DEPTH_CROP_RIGHT || 
+        y < DEPTH_CROP_TOP || 
+        (composited.height - y) < DEPTH_CROP_BOTTOM )
+      {
+         composited.pixels[i] = color(0,0,0);
+      }
+    }
   }
   
   if (DEV_MODE)
@@ -375,8 +403,11 @@ void draw()
     image(composited, 640,480);
   }
   else
-  {
-    image(composited, 0, 0);
+  { 
+    //screen fill:
+    //expecting height to be the limiting factor
+    float actualWidth = PROJECTOR_HEIGHT*4.0/3;
+    image(composited, (PROJECTOR_WIDTH - actualWidth)/2, 0, actualWidth, PROJECTOR_HEIGHT);
   }
 
   drawing = false;
@@ -420,4 +451,3 @@ void onNewUser(SimpleOpenNI curContext, int userId)
   
   curContext.startTrackingSkeleton(userId);
 }
-
