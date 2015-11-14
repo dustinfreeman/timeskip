@@ -77,7 +77,7 @@ color even_blend(color c1, color c2)
 
 // spacing queue ------------------------
 
-int SQ_SIZE = 200;
+int SQ_SIZE = 30*10; //30 minutes
 PImage[] SQ_ImageQueue; 
 int[] SQ_debugIntQueue;
 
